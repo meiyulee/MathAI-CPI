@@ -32,7 +32,7 @@ def load_excel_data():
 
 sheet_names, excel_file = load_excel_data()
 
-# 篩選工作表：只保留大於等於 202501 的月份，且自動跳過缺失的 202601
+# 篩選工作表
 model_sheets = []
 for s in sheet_names:
     cleaned_name = str(s).strip()
@@ -63,14 +63,13 @@ try:
     extended_cols = list(alphabet) + [f"A{char}" for char in alphabet]
     col_mapping = {extended_cols[idx]: col_name for idx, col_name in enumerate(df_raw.columns) if idx < len(extended_cols)}
 
-    # 🚀 修正：PCE 的 ANOVA 完全在 K 欄和 L 欄，與 CPI 傳統限制版的位置完全相同
-    date_col = col_mapping.get("A")       # A 欄：日期
-    x_index_col = col_mapping.get("C")     # C 欄：時間代號
-    actual_col = col_mapping.get("G")     # G 欄：PCE物價指數年增率原始值
-    estimate_col = col_mapping.get("H")   # H 欄：估計值
-    text_col = col_mapping.get("I")       # I 欄：數據分析結果文字區
-    overall_r2_col = col_mapping.get("K") # 校正：整體 R² 在 K 欄（如 K120）
-    overall_mse_col = col_mapping.get("L") # 校正：整體 MSE 在 L 欄（如 L116）
+    date_col = col_mapping.get("A")       
+    x_index_col = col_mapping.get("C")     
+    actual_col = col_mapping.get("G")     
+    estimate_col = col_mapping.get("H")   
+    text_col = col_mapping.get("I")       
+    overall_r2_col = col_mapping.get("K") 
+    overall_mse_col = col_mapping.get("L") 
 
     if not date_col or not actual_col or not estimate_col:
         st.error("❌ 找不到對應的 Excel 欄位字母（A, G, H），請檢查 Excel 結構。")
@@ -96,14 +95,12 @@ try:
         text_list = df_raw[text_col].fillna("").astype(str).tolist()
         text_block = " ".join(text_list)
         
-        # 1. 提取最新短期趨勢 R²
         r2_matches = re.findall(r'(?:R2|R\^2|R_2)\s*=\s*(-?\d+\.?\d*(?:[eE][-+]?\d+)?)', text_block, re.IGNORECASE)
         if r2_matches: short_r2 = float(r2_matches[-1])
             
         if "新趨勢" in text_block or "new line" in text_block.lower():
             is_new_trend = True
 
-        # 2. 解開 Tuple 包裝個別轉成 float 數字
         formula_matches = re.findall(r'Y\s*=\s*(-?\d+\.\d+)\s*([-+]\s*\d+\.\d+)\s*\*?\s*X', text_block, re.IGNORECASE)
         for f in formula_matches:
             try:
@@ -112,42 +109,37 @@ try:
                 lines_found.append({'beta0': b0, 'beta1': b1})
             except: continue
 
-        # 3. 提取整體模型指標 (精準對齊 2025年5月限制條件)
+        # 💡 精準校正：202505(含)之前動態轉化為您指定的優雅字眼「未計算」
         sheet_num = int(re.sub(r'[^0-9]', '', str(selected_sheet)))
         
         if sheet_num <= 202505:
-            overall_r2 = "2025/05(含)之前無"
-            overall_mse = "2025/05(含)之前無"
+            overall_r2 = "未計算"
+            overall_mse = "未計算"
         else:
-            # 🚀【核心科技：全自動倒序 K 欄與 L 欄打撈系統，完美解決位置變動問題】
             if overall_r2_col and overall_r2_col in df_raw.columns:
-                # 將 K 欄內容全部轉為文字並剔除空值
-                r2_list = df_raw[overall_r2_col].fillna("").astype(str).tolist()
-                # 從最底部往上掃描
-                for i in range(len(r2_list) - 1, -1, -1):
-                    val_str = r2_list[i].strip()
-                    if re.match(r'^0\.\d+$', val_str): # 尋找 0.9xxx 的整體 R2
-                        overall_r2 = f"{float(val_str):.6f}"
-                        break
+                r2_list = df_raw[overall_r2_col].dropna().tolist()
+                for val in r2_list:
+                    try:
+                        val_num = float(val)
+                        if 0.5 <= val_num < 1.0:
+                            overall_r2 = f"{val_num:.6f}"
+                            break
+                    except: continue
 
             if overall_mse_col and overall_mse_col in df_raw.columns:
-                mse_list = df_raw[overall_mse_col].fillna("").astype(str).tolist()
-                # 從最底部往上掃描
+                mse_list = df_raw[overall_mse_col].dropna().tolist()
                 for i in range(len(mse_list) - 1, -1, -1):
-                    val_str = mse_list[i].strip()
-                    # 尋找 ANOVA 中出現的 MSE（通常在 0 到 0.5 之間，且位於 Error 殘差字眼附近的 L 欄）
                     try:
-                        val_num = float(val_str)
+                        val_num = float(mse_list[i])
                         if 0.0 < val_num < 0.5:
                             overall_mse = f"{val_num:.6f}"
                             break
                     except: continue
 
 except Exception as e:
-    st.error(f"❌ 數據與 ANOVA 指標提取失敗。請檢查 Excel 結構。錯誤: {e}")
+    st.error(f"❌ 數據與 ANOVA 指標提取失敗。錯誤: {e}")
     st.stop()
 
-# 5. 智慧拐點警報顯示
 if is_new_trend:
     st.error(f"🚨 **MathAI 趨勢拐點警報**：系統已自動捕捉到動態趨勢轉折點！")
 else:
@@ -156,7 +148,6 @@ else:
 # 6. 繪製純淨單軸 Plotly 金融圖表
 fig = go.Figure()
 
-# FRED 實際年增率（純點，綠色）
 fig.add_trace(go.Scatter(
     x=df_clean['display_date'], y=df_clean['Actual'],
     mode='markers', 
@@ -165,7 +156,6 @@ fig.add_trace(go.Scatter(
     marker=dict(color='#2ca02c', size=6, opacity=0.7)
 ))
 
-# MathAI 精準多線段短期趨勢預估值（實線穿透）
 df_est_clean = df_clean.dropna(subset=['Estimate']).copy()
 if not df_est_clean.empty:
     fig.add_trace(go.Scatter(
@@ -176,7 +166,6 @@ if not df_est_clean.empty:
         line=dict(color='#d62728', width=3)
     ))
 
-    # === 🚨 【EconTech 核心演算優化：後台公式自動比對精準定位最新線段起點】 ===
     if is_new_trend and len(lines_found) > 0 and 'X_Idx' in df_est_clean.columns:
         try:
             latest_line = lines_found[-1]
@@ -198,7 +187,6 @@ if not df_est_clean.empty:
         except:
             pass
 
-# 移除原有重疊黑影大標題
 fig.update_layout(
     title=None,
     xaxis_title="觀測日期 (YYYY-MM)", yaxis_title="個人消費支出物價年增率 (%)",
@@ -226,4 +214,4 @@ with col3:
     )
 
 st.write("---")
-st.caption("🔒 Powered by MathAI Propelled Unconstrained Autonomous Evolution Engine. Dynamically scanning K and L columns.")
+st.caption("🔒 Powered by MathAI Propelled Unconstrained Autonomous Evolution Engine.")
