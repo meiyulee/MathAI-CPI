@@ -55,7 +55,7 @@ else:
 st.sidebar.header("🎛️ 模型參數選單")
 selected_sheet = st.sidebar.selectbox("1. 選擇模型分析工作表 (月份)", model_sheets)
 
-# 4. 精準字母定位（完全根據 PCE 實測結構，從 A 欄起始對接）
+# 4. 精準字母定位
 try:
     df_raw = pd.read_excel(excel_file, sheet_name=selected_sheet, skiprows=11)
     
@@ -63,8 +63,7 @@ try:
     extended_cols = list(alphabet) + [f"A{char}" for char in alphabet]
     col_mapping = {extended_cols[idx]: col_name for idx, col_name in enumerate(df_raw.columns) if idx < len(extended_cols)}
 
-    # 🚀 根據您的最新截圖，精準綁定絕對字母座標
-    date_col = col_mapping.get("A")       # A 欄：日期 (2018-01開始)
+    date_col = col_mapping.get("A")       # A 欄：日期
     x_index_col = col_mapping.get("C")     # C 欄：時間代號
     actual_col = col_mapping.get("G")     # G 欄：PCE物價指數年增率原始值
     estimate_col = col_mapping.get("H")   # H 欄：估計值
@@ -101,19 +100,25 @@ try:
         if "新趨勢" in text_block or "new line" in text_block.lower():
             is_new_trend = True
 
-        # 2. 盲抓文字區中的公式參數（用來精準對齊轉折點）
+        # 2. 修正：精準解開 Tuple 包裝，個別轉成 float 數字避免閃退
         formula_matches = re.findall(r'Y\s*=\s*(-?\d+\.\d+)\s*([-+]\s*\d+\.\d+)\s*\*?\s*X', text_block, re.IGNORECASE)
         for f in formula_matches:
-            lines_found.append({'beta0': float(f), 'beta1': float(f.replace(" ", ""))})
+            try:
+                # f 是一個元組，如 ('-2.984145', '+0.048989')
+                b0 = float(f[0])
+                b1 = float(f[1].replace(" ", ""))
+                lines_found.append({'beta0': b0, 'beta1': b1})
+            except:
+                continue
 
-        # 3. 提取整體模型指標 (動態相容 202506 之後才產生的 ANOVA 區塊)
+        # 3. 提取整體模型指標 (動態相容歷史分頁無 ANOVA 之機制)
         for i in range(len(text_list) - 1, -1, -1):
             val_str = text_list[i].strip()
             if "error" in val_str.lower() or "殘差" in val_str:
                 try:
                     row_chunk = " ".join(text_list[i:i+5])
                     mse_matches = re.findall(r'0\.\d+', row_chunk)
-                    if mse_matches: overall_mse = float(mse_matches)
+                    if mse_matches: overall_mse = float(mse_matches[0])
                 except: pass
             if re.match(r'^0\.\d+$', val_str) and overall_r2 is None:
                 try:
@@ -125,8 +130,9 @@ except Exception as e:
     st.error(f"❌ 數據與 ANOVA 指標提取失敗。請檢查 Excel 結構。錯誤: {e}")
     st.stop()
 
+# 5. 智慧拐點警報顯示
 if is_new_trend:
-    st.error(f"🚨 **MathAI 趨勢拐點警報**：系統已自動捕捉到動態趨勢轉折點！")
+    st.error(f"🚨 **MathAI 趨勢拐點警報**：當前引擎已自動捕捉到動態趨勢轉折點！")
 else:
     st.success(f"ℹ️ **當前模型狀態**：美國 PCE 數據在該區間內運作平穩。")
 
@@ -163,8 +169,8 @@ if not df_est_clean.empty:
             df_latest_segment = df_est_clean[df_est_clean['diff'] < 1e-4]
             
             if not df_latest_segment.empty:
-                break_date = str(df_latest_segment['display_date'].iloc)
-                break_val = float(df_latest_segment['Estimate'].iloc)
+                break_date = str(df_latest_segment['display_date'].iloc[0])
+                break_val = float(df_latest_segment['Estimate'].iloc[0])
                 
                 fig.add_vline(x=break_date, line_width=1.5, line_dash="dash", line_color="#475569")
                 fig.add_annotation(
@@ -183,7 +189,7 @@ fig.update_layout(
 )
 st.plotly_chart(fig, use_container_width=True)
 
-# 7. 呈現量化指標卡片 (加入 2025/06 歷史分頁無 ANOVA 之自動文字相容機制)
+# 7. 呈現量化指標卡片
 col1, col2, col3 = st.columns(3)
 with col1: 
     st.metric(
@@ -202,4 +208,4 @@ with col3:
     )
 
 st.write("---")
-st.caption("🔒 Powered by MathAI Propelled Unconstrained Autonomous Evolution Engine. Explicitly mapping A to I column schema.")
+st.caption("🔒 Powered by MathAI Propelled Unconstrained Autonomous Evolution Engine. Unpacking tuple parsing layer successfully.")
