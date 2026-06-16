@@ -1,12 +1,8 @@
 # 🤖 MathAI-CPI: 美國通貨膨脹率雙引擎動態預測系統
 
 <p align="center">
-  <a href="https://google.com">
-    <img src="https://shields.io" alt="Live Demo">
-  </a>
-  <a href="https://streamlit.app">
-    <img src="https://shields.io" alt="Streamlit App">
-  </a>
+  <a href="[https://google.com](https://sites.google.com/view/usinflation/)"><img src="https://shields.io" alt="Live Demo"></a>
+  <a href="[https://streamlit.app](https://mathai-cpi-dynamicplot.streamlit.app/)"><img src="https://shields.io" alt="Streamlit App"></a>
 </p>
 
 ---
