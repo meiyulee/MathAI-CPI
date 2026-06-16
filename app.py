@@ -25,16 +25,37 @@ def load_excel_data():
 
 sheet_names, excel_file = load_excel_data()
 
-model_sheets = [s for s in sheet_names if any(char.isdigit() for char in s)]
+# =================【關鍵核心優化】=================
+# 篩選工作表：只保留純數字，且格式符合 YYYYMM 且 大於等於 202501 的工作表
+model_sheets = []
+for s in sheet_names:
+    cleaned_name = str(s).strip()
+    if cleaned_name.isdigit() and len(cleaned_name) == 6: # 確保是 6 碼數字 (如 202501)
+        if int(cleaned_name) >= 202501:
+            model_sheets.append(cleaned_name)
+
+# 如果 Excel 命名習慣有斜線（如 2025/01），則改用這個容錯規則
 if not model_sheets:
-    model_sheets = sheet_names
+    for s in sheet_names:
+        cleaned_name = re.sub(r'[^0-9]', '', str(s)) # 只留數字
+        if len(cleaned_name) == 6 and int(cleaned_name) >= 202501:
+            model_sheets.append(s)
+
+# 如果真的找不到符合的分頁，就保留原本全部
+if not model_sheets:
+    model_sheets = [s for s in sheet_names if any(char.isdigit() for char in s)]
+else:
+    # 讓月份由新到舊排序（最新月份排在最上面，使用者體驗最好）
+    model_sheets.sort(reverse=True)
+# =================================================
 
 # 3. 側邊控制面板
 st.sidebar.header("🎛️ 模型參數選單")
+# 這邊的選單將會非常乾淨，只從 2025 年 1 月開始讓使用者挑選！
 selected_sheet = st.sidebar.selectbox("1. 選擇模型分析工作表 (月份)", model_sheets)
 engine_type = st.sidebar.radio("2. 選擇 MathAI 核心引擎", ["傳統計量限制版", "AI 自主進化版 (從2018開始)"])
 
-# 4. 根據選定的引擎，進行精準的欄位定位與 2025 時間過濾
+# 4. 根據選定的引擎進行欄位定位（保留完整數據不剪裁）
 try:
     df_raw = pd.read_excel(excel_file, sheet_name=selected_sheet, skiprows=11)
     
@@ -62,20 +83,22 @@ try:
         text_col = "col_9"     # AE 欄
         engine_label = "AI自主進化"
 
-    # 確保欄位皆轉為正確型態
-    df_model[date_col] = pd.to_datetime(df_model[date_col], errors='coerce')
+    # 格式轉換
     df_model[actual_col] = pd.to_numeric(df_model[actual_col], errors='coerce')
     df_model[estimate_col] = pd.to_numeric(df_model[estimate_col], errors='coerce')
     
-    # 核心關鍵：過濾掉空值，且強制限縮在 2025 年 1 月 1 日之後的數據
-    df_filtered = df_model[(df_model[date_col] >= '2025-01-01')].dropna(subset=[actual_col, date_col]).copy()
+    # 剔除空值，保留您的模型原本所有的歷史觀測區間（不截斷歷史數據）
+    df_clean = df_model.dropna(subset=[actual_col, date_col]).copy()
     
-    # 將日期格式化為乾淨的字串以便 X 軸呈現
-    df_filtered['display_date'] = df_filtered[date_col].dt.strftime('%Y-%m')
-    
-    # 全自動搜尋右側文字說明區，用來捕捉 R2 與 拐點警報
+    # 將日期格式化，支援 Timestamp 或文字日期
+    try:
+        df_clean['display_date'] = pd.to_datetime(df_clean[date_col], errors='coerce').dt.strftime('%Y-%m')
+    except:
+        df_clean['display_date'] = df_clean[date_col].astype(str)
+        
+    # 自動搜尋右側文字說明區，捕捉 R2 與 拐點警報
     text_block = ""
-    if text_col in df_filtered.columns:
+    if text_col in df_clean.columns:
         text_block = "".join(df_raw.iloc[:, 11 if "傳統" in engine_type else 30].dropna().astype(str).tolist())
         
     r2, is_new_trend = 0.0, False
@@ -85,21 +108,21 @@ try:
         is_new_trend = True
         
 except Exception as e:
-    st.error(f"❌ 數據剪裁失敗。請檢查 Excel 第 12 列之後的日期格式。錯誤: {e}")
+    st.error(f"❌ 數據載入失敗。請確認 Excel 欄位結構。錯誤: {e}")
     st.stop()
 
 # 5. 智慧拐點警報顯示
 if is_new_trend:
     st.error(f"🚨 **MathAI 趨勢拐點警報**：當前引擎已自動捕捉到動態趨勢轉折點！")
 else:
-    st.success(f"ℹ_ **當前模型狀態**：美國通膨數據在該區間內運作平穩。")
+    st.success(f"ℹ️ **當前模型狀態**：美國通膨數據在該區間內運作平穩。")
 
 # 6. 繪製純淨單軸 Plotly 金融圖表
 fig = go.Figure()
 
 # 繪製真實 CPI 年增率歷史線
 fig.add_trace(go.Scatter(
-    x=df_filtered['display_date'], y=df_filtered[actual_col],
+    x=df_clean['display_date'], y=df_clean[actual_col],
     mode='markers+lines', 
     name='FRED 實際 CPI 年增率 (%)',
     hovertemplate="<b>日期</b>: %{x}<br><b>實際年增率</b>: %{y}%<extra></extra>",
@@ -107,8 +130,8 @@ fig.add_trace(go.Scatter(
     marker=dict(size=6)
 ))
 
-# 繪製 MathAI 預測回歸線（直接採用 H 欄或 AB 欄，完全共用同一個 Y 軸）
-df_est_clean = df_filtered.dropna(subset=[estimate_col])
+# 繪製 MathAI 預測回歸線（直接採用 H 欄或 AB 欄）
+df_est_clean = df_clean.dropna(subset=[estimate_col])
 if not df_est_clean.empty:
     fig.add_trace(go.Scatter(
         x=df_est_clean['display_date'], y=df_est_clean[estimate_col],
@@ -118,9 +141,9 @@ if not df_est_clean.empty:
         line=dict(color='#d62728', width=3, dash='dash' if "AI" in engine_type else 'solid')
     ))
 
-# 圖表外觀極簡化配置
+# 圖表外觀配置
 fig.update_layout(
-    title=f"美國 CPI 年增率與 MathAI 預測趨勢對照圖 (2025年起精華摘要)",
+    title=f"美國 CPI 年增率與 MathAI 預測趨勢對照圖 (當前分析月份: {selected_sheet})",
     xaxis_title="觀測日期 (YYYY-MM)",
     yaxis_title="通貨膨脹率 / 年增率 (%)",
     hovermode="x unified",
@@ -133,8 +156,8 @@ st.plotly_chart(fig, use_container_width=True)
 # 7. 呈現量化指標卡片
 col1, col2, col3 = st.columns(3)
 with col1: st.metric(label="📊 引擎自適應解釋力 (R²)", value=f"{r2:.4f}" if r2 != 0.0 else "由後台動態優化中")
-with col2: st.metric(label="📅 資料顯示起點", value="2025-01")
-with col3: st.metric(label="📈 當前分析狀態", value="精簡版同步中")
+with col2: st.metric(label="📅 當前分析樣本數", value=f"{len(df_clean)} 筆資料")
+with col3: st.metric(label="📈 選單過濾機制", value="已鎖定 2025 年起之預報")
 
 st.write("---")
-st.caption("🔒 Powered by MathAI Propelled Dual-Engine. Data truncated from 2025-01 for executive summary.")
+st.caption("🔒 Powered by MathAI Propelled Dual-Engine. Dashboard workspace restricted from 2025-01 onwards.")
