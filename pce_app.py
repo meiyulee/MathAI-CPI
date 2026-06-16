@@ -68,6 +68,8 @@ try:
     actual_col = col_mapping.get("G")     # G 欄：PCE物價指數年增率原始值
     estimate_col = col_mapping.get("H")   # H 欄：估計值
     text_col = col_mapping.get("I")       # I 欄：數據分析結果與 ANOVA 文字區
+    overall_r2_col = col_mapping.get("AE") # AE 欄：整體 R² 欄位
+    overall_mse_col = col_mapping.get("AF") # AF 欄：整體 MSE 欄位
 
     if not date_col or not actual_col or not estimate_col:
         st.error("❌ 找不到對應的 Excel 欄位字母（A, G, H），請檢查 Excel 結構。")
@@ -100,39 +102,49 @@ try:
         if "新趨勢" in text_block or "new line" in text_block.lower():
             is_new_trend = True
 
-        # 2. 修正：精準解開 Tuple 包裝，個別轉成 float 數字避免閃退
+        # 2. 解開 Tuple 包裝個別轉成 float 數字
         formula_matches = re.findall(r'Y\s*=\s*(-?\d+\.\d+)\s*([-+]\s*\d+\.\d+)\s*\*?\s*X', text_block, re.IGNORECASE)
         for f in formula_matches:
             try:
-                # f 是一個元組，如 ('-2.984145', '+0.048989')
                 b0 = float(f[0])
                 b1 = float(f[1].replace(" ", ""))
                 lines_found.append({'beta0': b0, 'beta1': b1})
-            except:
-                continue
+            except: continue
 
-        # 3. 提取整體模型指標 (動態相容歷史分頁無 ANOVA 之機制)
-        for i in range(len(text_list) - 1, -1, -1):
-            val_str = text_list[i].strip()
-            if "error" in val_str.lower() or "殘差" in val_str:
-                try:
-                    row_chunk = " ".join(text_list[i:i+5])
-                    mse_matches = re.findall(r'0\.\d+', row_chunk)
-                    if mse_matches: overall_mse = float(mse_matches[0])
-                except: pass
-            if re.match(r'^0\.\d+$', val_str) and overall_r2 is None:
-                try:
-                    val_num = float(val_str)
-                    if 0.5 <= val_num < 1.0: overall_r2 = val_num
-                except: pass
+        # 3. 提取整體模型指標 (精準校正：2025年5月含之前才顯示沒有)
+        # 先將當前選定的月份轉為純數字進行時間軸比對
+        sheet_num = int(re.sub(r'[^0-9]', '', str(selected_sheet)))
+        
+        if sheet_num <= 202505:
+            overall_r2 = "2025/05(含)之前無"
+            overall_mse = "2025/05(含)之前無"
+        else:
+            # 2025/05 之後的月份，全自動去 AE 欄與 AF 欄精準打撈
+            if overall_r2_col and overall_r2_col in df_raw.columns:
+                r2_list = df_raw[overall_r2_col].dropna().tolist()
+                for val in r2_list:
+                    try:
+                        val_num = float(val)
+                        if 0.5 <= val_num < 1.0:
+                            overall_r2 = f"{val_num:.6f}"
+                            break
+                    except: continue
+
+            if overall_mse_col and overall_mse_col in df_raw.columns:
+                mse_list = df_raw[overall_mse_col].dropna().tolist()
+                for val in mse_list:
+                    try:
+                        val_num = float(val)
+                        if 0.0 < val_num < 0.5:
+                            overall_mse = f"{val_num:.6f}"
+                    except: continue
 
 except Exception as e:
     st.error(f"❌ 數據與 ANOVA 指標提取失敗。請檢查 Excel 結構。錯誤: {e}")
     st.stop()
 
-# 5. 智慧拐點警報顯示
 if is_new_trend:
-    st.error(f"🚨 **MathAI 趨勢拐點警報**：當前引擎已自動捕捉到動態趨勢轉折點！")
+    st.error(f"🚨 **MathAI 趨勢拐點警報**：系統已自動捕捉到動態趨勢轉折點！")
 else:
     st.success(f"ℹ️ **當前模型狀態**：美國 PCE 數據在該區間內運作平穩。")
 
@@ -181,31 +193,32 @@ if not df_est_clean.empty:
         except:
             pass
 
+# 💡 修正 1：將 title 設為 None，徹底拔除 Plotly 原生大標題，完美消滅重疊黑色黑影
 fig.update_layout(
-    title=f"美國 PCE 年增率與 MathAI 預測趨勢對照圖 (當前分析月份: {selected_sheet})",
+    title=None,
     xaxis_title="觀測日期 (YYYY-MM)", yaxis_title="個人消費支出物價年增率 (%)",
     hovermode="x unified", template="plotly_white",
     legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.02), margin=dict(t=10, b=10)
 )
 st.plotly_chart(fig, use_container_width=True)
 
-# 7. 呈現量化指標卡片
+# 7. 呈現量化指標卡片 (修正 2：對齊 202505 限制條件，其餘月份自動秀出真實小數)
 col1, col2, col3 = st.columns(3)
 with col1: 
     st.metric(
         label="📊 短期趨勢解釋力 (Short R²)", 
-        value=f"{short_r2:.6f}" if short_r2 is not None else "未紀錄此指標"
+        value=f"{short_r2:.6f}" if isinstance(short_r2, (int, float)) else "未紀錄此指標"
     )
 with col2: 
     st.metric(
         label="🏛️ 模型整體解釋力 (Overall R²)", 
-        value=f"{overall_r2:.6f}" if overall_r2 is not None else "2025/06起提供"
+        value=str(overall_r2) if overall_r2 is not None else "自動對齊中"
     )
 with col3: 
     st.metric(
         label="📐 模型整體均方誤差 (Overall MSE)", 
-        value=f"{overall_mse:.6f}" if overall_mse is not None else "2025/06起提供"
+        value=str(overall_mse) if overall_mse is not None else "自動對齊中"
     )
 
 st.write("---")
-st.caption("🔒 Powered by MathAI Propelled Unconstrained Autonomous Evolution Engine. Unpacking tuple parsing layer successfully.")
+st.caption("🔒 Powered by MathAI Propelled Unconstrained Autonomous Evolution Engine.")
