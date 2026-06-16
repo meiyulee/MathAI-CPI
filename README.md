@@ -12,7 +12,7 @@
 本專案為 **MathAI (Symbolic Mathematics & Computation Engine)** 在量化金融與宏觀因子預測領域的生產級（Production-grade）延伸應用。
 
 系統之核心方法論與優化判斷原則，完全建立在 **SCIE 國際權威期刊之嚴謹數學論證** 之上：
-> Lin, Y. S., Fan, C. P.*, Lee, M. Y., & Lee, Y. H. (2026). Mathematical Computation of Piecewise Linear Regression with Endogenous Segmentation for Accurate Data-Based Model Building: An Example of the Phillips Curve. *Mathematics*, 14(6), 1041. (SCIE, IF=2.2). [https://doi.org]
+> Lin, Y. S., Fan, C. P.*, Lee, M. Y., & Lee, Y. H. (2026). Mathematical Computation of Piecewise Linear Regression with Endogenous Segmentation for Accurate Data-Based Model Building: An Example of the Phillips Curve. *Mathematics*, 14(6), 1041. (SCIE, IF=2.2). [[https://doi.org](https://doi.org/10.3390/math14061041)]
 
 **💡 本專案之創新工程轉型 (Academic-to-Industry Engineering Transition)：**
 原論文聚焦於雙總經指標空間（如非線性菲利浦曲線）之內生分段優化。本專案將其**創新演進為以「時間代號 (Time Variable)」為自變數的動態時間序列分析**。
@@ -61,7 +61,7 @@
 ---
 
 ## 🛠️ 開發工具與環境配置 (Tech Stack)
-*   **Core Mathematical Computation Engine**: `MathAI (自研數字數學與計量分析引擎)`
+*   **Core Mathematical Computation Engine**: **[MathAI (自研符號數學與計量分析引擎)](https://github.com/meiyulee/MathAI)**
 *   **Data Pipeline & Automation**: `Python 3.10+`, `Pandas`, `NumPy`, `OpenPyXL`
 *   **Data Visualization**: `Plotly (Dynamic Interactive Financial Charts)`
 *   **Web Framework & Cloud Deployment**: `Streamlit`, `Streamlit Community Cloud`
