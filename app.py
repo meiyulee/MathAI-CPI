@@ -7,12 +7,12 @@ import re
 # 1. 網頁頁面配置
 st.set_page_config(page_title="MathAI CPI Forecast", layout="wide")
 
-# ================= 🚀 【進階視覺微調 3：大廠專業字體與極簡 CSS 優化】 =================
+# ================= 🚀 【進階視覺微調 3：修正嵌入切頭問題】 =================
 st.html("""
     <style>
-        /* 隱藏 Streamlit 頂部多餘的空白 padding，讓畫面往上提 */
+        /* 調整頂部 Padding，留出 4.5rem 的安全邊界，防止被 Google Sites 切頭 */
         .block-container {
-            padding-top: 2rem !important;
+            padding-top: 4.5rem !important;
             padding-bottom: 2rem !important;
         }
         /* 縮小並美化主標題 */
@@ -20,7 +20,7 @@ st.html("""
             font-size: 26px !important;
             font-weight: 700 !important;
             color: #1E293B !important;
-            margin-bottom: 4px !important;
+            margin-bottom: 8px !important;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
         /* 美化副標題 */
@@ -33,7 +33,7 @@ st.html("""
     </style>
 """)
 
-# 用精緻的 HTML 標籤取代原本粗獷的 st.title 和 st.markdown
+# 用精緻的 HTML 標籤取代
 st.html('<div class="main-title">📊 MathAI：美國通貨膨脹率預測系統</div>')
 st.html('<div class="sub-title">外生限制短期趨勢引擎 <span style="color:#CBD5E1;">│</span> AI 數據自主分段進化引擎</div>')
 st.write("---")
@@ -53,7 +53,7 @@ def load_excel_data():
 
 sheet_names, excel_file = load_excel_data()
 
-# 篩選工作表：只保留大於等於 202501 的月份
+# 篩選工作表
 model_sheets = []
 for s in sheet_names:
     cleaned_name = str(s).strip()
@@ -90,20 +90,20 @@ try:
             col_mapping[extended_cols[idx]] = col_name
 
     if "外生" in engine_type:
-        date_col = col_mapping.get("A")       # A 欄：日期
-        actual_col = col_mapping.get("G")     # G 欄：實際年增率原始值
-        estimate_col = col_mapping.get("H")   # H 欄：估計值
-        text_col = col_mapping.get("I")       # I 欄：最新短期趨勢文字段落區
-        overall_r2_col = col_mapping.get("K") # K 欄：整體 R² 所在欄位
-        overall_mse_col = col_mapping.get("L") # L 欄：整體 MSE 所在欄位
+        date_col = col_mapping.get("A")       # A 欄
+        actual_col = col_mapping.get("G")     # G 欄
+        estimate_col = col_mapping.get("H")   # H 欄
+        text_col = col_mapping.get("M")       # M 欄
+        overall_r2_col = col_mapping.get("K") # K 欄
+        overall_mse_col = col_mapping.get("L") # L 欄
         engine_label = "外生限制短期趨勢"
     else:
-        date_col = col_mapping.get("V")       # V 欄：日期
-        actual_col = col_mapping.get("AA")    # AA 欄：實際年增率原始值
-        estimate_col = col_mapping.get("AB")  # AB 欄：估計值
-        text_col = col_mapping.get("AC")       # AC 欄：趨勢文字區
-        overall_r2_col = col_mapping.get("AE") # AE 欄：整體 R² 欄位
-        overall_mse_col = col_mapping.get("AF") # AF 欄：整體 MSE 欄位
+        date_col = col_mapping.get("V")       # V 欄
+        actual_col = col_mapping.get("AA")    # AA 欄
+        estimate_col = col_mapping.get("AB")  # AB 欄
+        text_col = col_mapping.get("AG")       # AG 欄
+        overall_r2_col = col_mapping.get("AE") # AE 欄
+        overall_mse_col = col_mapping.get("AF") # AF 欄
         engine_label = "AI自主進化"
 
     if not date_col or not actual_col or not estimate_col:
@@ -128,7 +128,6 @@ try:
     overall_mse = None
     is_new_trend = False
     
-    # 1. 提取最新短期趨勢 R²
     if text_col and text_col in df_raw.columns:
         text_list = df_raw[text_col].fillna("").astype(str).tolist()
         text_block = " ".join(text_list)
@@ -138,7 +137,6 @@ try:
         if "新趨勢" in text_block or "new line" in text_block.lower():
             is_new_trend = True
 
-    # 2. 提取整體 R²
     if overall_r2_col and overall_r2_col in df_raw.columns:
         r2_list = df_raw[overall_r2_col].dropna().tolist()
         for val in r2_list:
@@ -150,7 +148,6 @@ try:
             except:
                 continue
 
-    # 3. 提取整體 MSE
     if overall_mse_col and overall_mse_col in df_raw.columns:
         mse_list = df_raw[overall_mse_col].dropna().tolist()
         for val in mse_list:
@@ -196,7 +193,7 @@ fig.update_layout(
     xaxis_title="觀測日期 (YYYY-MM)", yaxis_title="通貨膨脹率 / 年增率 (%)",
     hovermode="x unified", template="plotly_white",
     legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.02),
-    margin=dict(t=10, b=10) # 緊湊型邊距設定，讓圖表更大
+    margin=dict(t=10, b=10)
 )
 st.plotly_chart(fig, use_container_width=True)
 
