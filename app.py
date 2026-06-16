@@ -55,16 +55,18 @@ try:
     
     if "計量" in engine_type:
         df_model = df_raw.iloc[:, :15].copy()
-        df_model.columns = [f"col_{i}" for i in range(df_model.shape)]
+        # 修正：精準指定欄位數量 [1]
+        df_model.columns = [f"col_{i}" for i in range(df_model.shape[1])]
         
         date_col = "col_0"
         actual_col = "col_6"   # G 欄：實際年增率
-        estimate_col = "col_7" # H 欄：您的公式估計值
+        estimate_col = "col_7" # H 欄：MathAI估計值
         text_col = "col_9"     # J 欄
         
     else:
         df_model = df_raw.iloc[:, 21:32].copy()
-        df_model.columns = [f"col_{i}" for i in range(df_model.shape)]
+        # 修正：精準指定欄位數量 [1]
+        df_model.columns = [f"col_{i}" for i in range(df_model.shape[1])]
         
         date_col = "col_0"
         actual_col = "col_5"   # AA 欄：實際年增率
@@ -94,19 +96,19 @@ try:
         is_new_trend = True
         
 except Exception as e:
-    st.error(f"❌ 數據載入失敗。請確認 Excel 欄位結構。錯誤: {e}")
+    st.error(f"❌ 數據載入失敗。請確認 Excel 欄位結構是否標準。錯誤: {e}")
     st.stop()
 
 # 5. 智慧拐點警報顯示
 if is_new_trend:
-    st.error(f"🚨 **MathAI 趨勢拐點警報**：系統已自動捕捉到動態趨勢轉折點！")
+    st.error(f"🚨 **MathAI 趨勢拐點警報**：當前引擎已自動捕捉到動態趨勢轉折點！")
 else:
     st.success(f"ℹ️ **當前模型狀態**：美國通膨數據在該區間內運作平穩。")
 
 # 6. 繪製純淨 Plotly 金融圖表
 fig = go.Figure()
 
-# 優化：FRED 實際年增率改為 mode='markers'（只有點，沒有線）
+# FRED 實際年增率改為 mode='markers'（只有點，沒有線）
 fig.add_trace(go.Scatter(
     x=df_clean['display_date'], y=df_clean[actual_col],
     mode='markers', 
@@ -115,7 +117,7 @@ fig.add_trace(go.Scatter(
     marker=dict(color='#2ca02c' if "AI" in engine_type else '#1f77b4', size=6, opacity=0.7)
 ))
 
-# 優化：修改為您專屬的商業名詞，紅線穿透點點
+# 專業商業命名紅線，直接同步您的估計欄位
 df_est_clean = df_clean.dropna(subset=[estimate_col])
 if not df_est_clean.empty:
     fig.add_trace(go.Scatter(
