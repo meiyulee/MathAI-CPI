@@ -7,9 +7,37 @@ import re
 # 1. 網頁頁面配置
 st.set_page_config(page_title="MathAI CPI Forecast", layout="wide")
 
-st.title("🤖 MathAI：美國通貨膨脹率預測系統")
-st.markdown("### 外生限制短期趨勢引擎 vs. AI 數據自主分段進化引擎")
+# ================= 🚀 【進階視覺微調 3：大廠專業字體與極簡 CSS 優化】 =================
+st.html("""
+    <style>
+        /* 隱藏 Streamlit 頂部多餘的空白 padding，讓畫面往上提 */
+        .block-container {
+            padding-top: 2rem !important;
+            padding-bottom: 2rem !important;
+        }
+        /* 縮小並美化主標題 */
+        .main-title {
+            font-size: 26px !important;
+            font-weight: 700 !important;
+            color: #1E293B !important;
+            margin-bottom: 4px !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        /* 美化副標題 */
+        .sub-title {
+            font-size: 15px !important;
+            font-weight: 500 !important;
+            color: #64748B !important;
+            margin-bottom: 15px !important;
+        }
+    </style>
+""")
+
+# 用精緻的 HTML 標籤取代原本粗獷的 st.title 和 st.markdown
+st.html('<div class="main-title">📊 MathAI：美國通貨膨脹率預測系統</div>')
+st.html('<div class="sub-title">外生限制短期趨勢引擎 <span style="color:#CBD5E1;">│</span> AI 數據自主分段進化引擎</div>')
 st.write("---")
+# =================================================================================
 
 # 2. 自動讀取 Excel 檔案
 @st.cache_data
@@ -100,20 +128,17 @@ try:
     overall_mse = None
     is_new_trend = False
     
-    # 1. 升級版：萬能數值正則表達式，100% 完美捕捉包括一般小數與科學記號的 R2
+    # 1. 提取最新短期趨勢 R²
     if text_col and text_col in df_raw.columns:
         text_list = df_raw[text_col].fillna("").astype(str).tolist()
         text_block = " ".join(text_list)
-        
-        # 💡 核心科技：此 Regex 支援 0.124661 以及 e-05 等任何計量輸出變體
         r2_matches = re.findall(r'R2\s*=\s*(-?\d+\.?\d*(?:[eE][-+]?\d+)?)', text_block, re.IGNORECASE)
         if r2_matches:
-            short_r2 = float(r2_matches[-1]) # 確保雷達永遠精準錨定最後一個最新算出的 R2
-            
+            short_r2 = float(r2_matches[-1])
         if "新趨勢" in text_block or "new line" in text_block.lower():
             is_new_trend = True
 
-    # 2. 動態提取整體 R² (從 K 欄或 AE 欄)
+    # 2. 提取整體 R²
     if overall_r2_col and overall_r2_col in df_raw.columns:
         r2_list = df_raw[overall_r2_col].dropna().tolist()
         for val in r2_list:
@@ -125,7 +150,7 @@ try:
             except:
                 continue
 
-    # 3. 動態提取整體 MSE (從 L 欄或 AF 欄)
+    # 3. 提取整體 MSE
     if overall_mse_col and overall_mse_col in df_raw.columns:
         mse_list = df_raw[overall_mse_col].dropna().tolist()
         for val in mse_list:
@@ -168,30 +193,24 @@ if not df_est_clean.empty:
     ))
 
 fig.update_layout(
-    title=f"美國 CPI 年增率與 MathAI 預測趨勢對照圖 (當前分析月份: {selected_sheet})",
     xaxis_title="觀測日期 (YYYY-MM)", yaxis_title="通貨膨脹率 / 年增率 (%)",
     hovermode="x unified", template="plotly_white",
-    legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.02)
+    legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.02),
+    margin=dict(t=10, b=10) # 緊湊型邊距設定，讓圖表更大
 )
 st.plotly_chart(fig, use_container_width=True)
 
 # 7. 呈現量化指標卡片
 col1, col2, col3 = st.columns(3)
 with col1: 
-    if short_r2 is not None:
-        st.metric(label="📊 最新線段短期趨勢解釋力 (Short R²)", value=f"{short_r2:.6f}")
-    else:
-        st.metric(label="📊 最新線段短期趨勢解釋力 (Short R²)", value="自動對齊中")
+    if short_r2 is not None: st.metric(label="📊 最新線段短期趨勢解釋力 (Short R²)", value=f"{short_r2:.6f}")
+    else: st.metric(label="📊 最新線段短期趨勢解釋力 (Short R²)", value="自動對齊中")
 with col2: 
-    if overall_r2 is not None:
-        st.metric(label="🏛️ 模型整體解釋力 (Overall R²)", value=f"{overall_r2:.6f}")
-    else:
-        st.metric(label="🏛️ 模型整體解釋力 (Overall R²)", value="0.960022")
+    if overall_r2 is not None: st.metric(label="🏛️ 模型整體解釋力 (Overall R²)", value=f"{overall_r2:.6f}")
+    else: st.metric(label="🏛️ 模型整體解釋力 (Overall R²)", value="0.960022")
 with col3: 
-    if overall_mse is not None:
-        st.metric(label="📐 模型整體均方誤差 (Overall MSE)", value=f"{overall_mse:.6f}")
-    else:
-        st.metric(label="📐 模型整體均方誤差 (Overall MSE)", value="0.210248")
+    if overall_mse is not None: st.metric(label="📐 模型整體均方誤差 (Overall MSE)", value=f"{overall_mse:.6f}")
+    else: st.metric(label="📐 模型整體均方誤差 (Overall MSE)", value="0.210248")
 
 st.write("---")
-st.caption("🔒 Powered by MathAI Propelled Dual-Engine. Advanced scientific regex streaming integration.")
+st.caption("🔒 Powered by MathAI Propelled Dual-Engine.")
