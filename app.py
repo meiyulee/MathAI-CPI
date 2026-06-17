@@ -69,7 +69,7 @@ else:
     model_sheets.sort(reverse=True)
 
 # 3. 側邊控制面板
-st.sidebar.header("🎛️ 模型參數選單")
+st.sidebar.header("  ️ 模型參數選單")
 selected_sheet = st.sidebar.selectbox("1. 選擇模型分析工作表 (月份)", model_sheets)
 engine_type = st.sidebar.radio("2. 選擇 MathAI 核心引擎", ["外生限制短期趨勢內樣本", "AI 自主進化版 (從2018開始)"])
 
@@ -168,12 +168,13 @@ if is_new_trend:
 else:
     st.success(f"ℹ️ **當前模型狀態**：美國通膨數據在該區間內運作平穩。")
 
-# 5. 💡【重構原生圖表物件】：直接在 layout 中使用極簡、純淨的規格，確保完全相容 Python 3.14
+# 5. 建立專業金融圖表（💡 修正點：利用 fixedrange 鎖定 X/Y 軸防止手機端誤觸跑位）
 layout = go.Layout(
-    xaxis=dict(title="觀測日期 (YYYY-MM)"),
-    yaxis=dict(title="年增率 (%)"),
+    xaxis=dict(title="觀測日期 (YYYY-MM)", fixedrange=True),
+    yaxis=dict(title="年增率 (%)", fixedrange=True),
     template="plotly_white",
-    hovermode="x unified"
+    hovermode="x unified",
+    dragmode=False # 強制關閉手機拖拽平移功能，網頁上下滑動極其流暢！
 )
 fig = go.Figure(layout=layout)
 
@@ -196,9 +197,13 @@ if not df_est_clean.empty:
         line=dict(color='#d62728', width=3, dash='dash' if "AI" in engine_type else 'solid')
     ))
 
+    # === 🚨 【EconTech 空間大會合：強制 int 轉換還原最新線段起點】 ===
     if is_new_trend and start_x_val is not None:
         try:
-            df_target_node = df_est_clean[df_est_clean['X_Idx'] == start_x_val]
+            # 💡 修正：將資料表的 X_Idx 強制轉為 int 進行精準整數對齊，完美復原切割線！
+            df_est_clean['X_Idx_int'] = df_est_clean['X_Idx'].fillna(0).astype(int)
+            df_target_node = df_est_clean[df_est_clean['X_Idx_int'] == int(start_x_val)]
+            
             if df_target_node.empty and len(df_est_clean) >= 8:
                 df_target_node = df_est_clean.iloc[-8:-7]
 
@@ -206,9 +211,12 @@ if not df_est_clean.empty:
                 break_date = str(df_target_node['display_date'].iloc)
                 break_val = float(df_target_node['Estimate'].iloc)
                 
+                # 畫穿透灰色虛線
                 fig.add_vline(x=break_date, line_width=1.5, line_dash="dash", line_color="#475569")
+                
+                # 彈出紅框標籤
                 fig.add_annotation(
-                    x=break_date, y=break_val, text="🚨 趨勢轉折拐點",
+                    x=break_date, y=break_val, text="🚨 MathAI 內生趨勢轉折拐點",
                     showarrow=True, arrowhead=2, arrowcolor="#d62728", arrowsize=1, arrowwidth=2,
                     ax=0, ay=-40, bordercolor="#d62728", borderwidth=1, borderpad=4, bgcolor="#FEF2F2", opacity=0.95
                 )
