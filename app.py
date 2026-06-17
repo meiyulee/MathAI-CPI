@@ -117,7 +117,7 @@ try:
     overall_r2 = None
     overall_mse = None
     is_new_trend = False
-    segment_length = 8 # 預設安全長度（限制版最少 8 個月）
+    segment_length = 8 
     
     if text_col and text_col in df_raw.columns:
         text_list = df_raw[text_col].fillna("").astype(str).tolist()
@@ -137,15 +137,12 @@ try:
         
         if anova_idx >= 5:
             target_line_text = text_list[anova_idx - 5]
-            # 🚀【核心突破】：同時抓取起點和終點兩個 X 數字（例如抓到 115 和 123）
             x_range_matches = re.findall(r'(\d+)\s+to\s+(\d+)', target_line_text, re.IGNORECASE)
             if x_range_matches:
                 start_x = int(x_range_matches[0][0])
                 end_x = int(x_range_matches[0][1])
-                # 核心計算法：終點 - 起點 + 1 = 最新這條短線涵蓋的總數據點數（月份數）
                 segment_length = end_x - start_x + 1
             else:
-                # 備用正則：若格式不同，改抓獨立的單一數字
                 x_single_matches = re.findall(r'(?:from|\s+X\s*=\s*|\s+X\s+|\D)(\d+)', target_line_text, re.IGNORECASE)
                 if len(x_single_matches) >= 2:
                     segment_length = int(x_single_matches[-1]) - int(x_single_matches[-2]) + 1
@@ -206,17 +203,21 @@ if not df_est_clean.empty:
         line=dict(color='#d62728', width=3, dash='dash' if "AI" in engine_type else 'solid')
     ))
 
-    # === 🚨 【EconTech 終極神技：全自動數據長度倒扣定位法】 ===
+    # === 🚨 【EconTech 空間修正：精準補足 1 個月的邊界點錯配】 ===
     if is_new_trend and len(df_est_clean) >= segment_length:
         try:
-            # 🎯 核心神邏輯：直接去有數字的估計線最尾巴，精準往回倒扣最新線段的月份數（segment_length）
-            # 這樣找出來的節點，百分之百、絕對就是這條最新直線的「第一天」！
-            target_idx = -int(segment_length)
+            # 🎯 終極修正：將倒扣長度設定為 -(segment_length - 1)，把當前終點月份扣除，完美向右平移一個月！
+            target_idx = -int(segment_length - 1)
+            
+            # 安全防護：防止最新線段剛好佔滿全樣本導致越界
+            if abs(target_idx) > len(df_est_clean):
+                target_idx = 0
+                
             df_target_node = df_est_clean.iloc[target_idx:target_idx+1]
 
             if not df_target_node.empty:
-                break_date = str(df_target_node['display_date'].iloc[0])
-                break_val = float(df_target_node['Estimate'].iloc[0])
+                break_date = str(df_target_node['display_date'].iloc)
+                break_val = float(df_target_node['Estimate'].iloc)
                 
                 # 畫穿透灰色虛線
                 fig.add_vline(x=break_date, line_width=1.5, line_dash="dash", line_color="#475569")
