@@ -200,8 +200,8 @@ if not df_est_clean.empty:
                 df_target_node = df_est_clean.iloc[-8:-7]
 
             if not df_target_node.empty:
-                break_date = str(df_target_node['display_date'].iloc[0])
-                break_val = float(df_target_node['Estimate'].iloc[0])
+                break_date = str(df_target_node['display_date'].iloc)
+                break_val = float(df_target_node['Estimate'].iloc)
                 
                 fig.add_vline(x=break_date, line_width=1.5, line_dash="dash", line_color="#475569")
                 fig.add_annotation(
@@ -211,13 +211,12 @@ if not df_est_clean.empty:
                 )
         except: pass
 
-# 🚀【Plotly 圖例響應式設定】：手機版將圖例移至下方防止壓縮圖表
+# 🚀【修正點】：拔除重複的 title=None，完美合併所有自適應設定
 fig.update_layout(
-    title=None,
     xaxis_title="觀測日期 (YYYY-MM)", yaxis_title="年增率 (%)",
     hovermode="x unified", template="plotly_white",
     legend=dict(orient="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5), 
-    margin=dict(t=10, b=50, l=10, r=10) # 緊湊型寬度配置
+    margin=dict(t=10, b=50, l=10, r=10)
 )
 st.plotly_chart(fig, use_container_width=True)
 
