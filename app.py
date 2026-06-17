@@ -117,7 +117,7 @@ try:
     overall_r2 = None
     overall_mse = None
     is_new_trend = False
-    segment_length = 8 
+    start_x_val = None 
     
     if text_col and text_col in df_raw.columns:
         text_list = df_raw[text_col].fillna("").astype(str).tolist()
@@ -129,24 +129,23 @@ try:
         if "新趨勢" in text_block or "new line" in text_block.lower() or "sorting" in text_block.lower():
             is_new_trend = True
 
+        # 精準定位：尋找 "ANOVA" 大字出現的行數
         anova_idx = -1
         for idx in range(len(text_list) - 1, -1, -1):
             if "anova" in text_list[idx].lower():
                 anova_idx = idx
                 break
         
+        # 往上平移 5 列抓取最新線段的文字描述
         if anova_idx >= 5:
             target_line_text = text_list[anova_idx - 5]
-            x_range_matches = re.findall(r'(\d+)\s+to\s+(\d+)', target_line_text, re.IGNORECASE)
-            if x_range_matches:
-                start_x = int(x_range_matches[0][0])
-                end_x = int(x_range_matches[0][1])
-                segment_length = end_x - start_x + 1
-            else:
-                x_single_matches = re.findall(r'(?:from|\s+X\s*=\s*|\s+X\s+|\D)(\d+)', target_line_text, re.IGNORECASE)
-                if len(x_single_matches) >= 2:
-                    segment_length = int(x_single_matches[-1]) - int(x_single_matches[-2]) + 1
+            # 智慧抓取文字中包含的所有數字列表
+            x_matches = re.findall(r'\d+', target_line_text)
+            if x_matches:
+                # 永遠抓取第一個出現的數字作為 X 的起始號碼（例如限制版抓到 115，進化版抓到 93）
+                start_x_val = int(x_matches[0])
 
+    # 3. 提取整體模型指標
     if overall_r2_col and overall_r2_col in df_raw.columns:
         r2_list = df_raw[overall_r2_col].fillna("").astype(str).tolist()
         for i in range(len(r2_list) - 1, -1, -1):
@@ -170,7 +169,7 @@ except Exception as e:
     st.stop()
 
 if is_new_trend:
-    st.error(f"🚨 **MathAI 趨勢拐點警報**：當前引擎已自動捕捉到動態趨勢转折點！")
+    st.error(f"🚨 **MathAI 趨勢拐點警報**：當前引擎已自動捕捉到動態趨勢轉折點！")
 else:
     st.success(f"ℹ️ **當前模型狀態**：美國通膨數據在該區間內運作平穩。")
 
@@ -203,31 +202,28 @@ if not df_est_clean.empty:
         line=dict(color='#d62728', width=3, dash='dash' if "AI" in engine_type else 'solid')
     ))
 
-    # === 🚨 【EconTech 空間大會合：最安全之正向長度切割計算法】 ===
-    if is_new_trend and len(df_est_clean) >= segment_length:
+    # === 🚨 【EconTech 終極咬合：100% 絕對純整數時間節點匹配】 ===
+    if is_new_trend and start_x_val is not None:
         try:
-            # 🎯 終極修正邏輯：總長度 N 減去趨勢段落月數，直接精準錨定最新線段的「第 1 個格子」
-            # 這不僅 100% 規避了 0 邊界，更能完美對齊到 2025-01！
-            target_pos = len(df_est_clean) - int(segment_length)
-            
-            # 防護鎖，確保不越界
-            if 0 <= target_pos < len(df_est_clean):
-                df_target_node = df_est_clean.iloc[target_pos:target_pos+1]
+            # 🎯 核心修正：將資料表的 X_Idx 填滿空值並強制轉為純整數型態，與文字抓出的 int(start_x_val) 完美對齊
+            df_est_clean['X_Idx_int'] = df_est_clean['X_Idx'].fillna(0).astype(int)
+            df_target_node = df_est_clean[df_est_clean['X_Idx_int'] == int(start_x_val)]
 
-                if not df_target_node.empty:
-                    break_date = str(df_target_node['display_date'].iloc[0])
-                    break_val = float(df_target_node['Estimate'].iloc[0])
-                    
-                    # 畫穿透灰色虛線
-                    fig.add_vline(x=break_date, line_width=1.5, line_dash="dash", line_color="#475569")
-                    
-                    # 彈出紅框標籤
-                    fig.add_annotation(
-                        x=break_date, y=break_val, text="🚨 MathAI 內生趨勢轉折拐點",
-                        showarrow=True, arrowhead=2, arrowcolor="#d62728", arrowsize=1, arrowwidth=2,
-                        ax=0, ay=-40, bordercolor="#d62728", borderwidth=1, borderpad=4, bgcolor="#FEF2F2", opacity=0.95
-                    )
-        except: pass
+            if not df_target_node.empty:
+                break_date = str(df_target_node['display_date'].iloc[0])
+                break_val = float(df_target_node['Estimate'].iloc[0])
+                
+                # 畫穿透灰色垂直虛線
+                fig.add_vline(x=break_date, line_width=1.5, line_dash="dash", line_color="#475569")
+                
+                # 彈出紅框標籤
+                fig.add_annotation(
+                    x=break_date, y=break_val, text="🚨 MathAI 內生趨勢轉折拐點",
+                    showarrow=True, arrowhead=2, arrowcolor="#d62728", arrowsize=1, arrowwidth=2,
+                    ax=0, ay=-40, bordercolor="#d62728", borderwidth=1, borderpad=4, bgcolor="#FEF2F2", opacity=0.95
+                )
+        except Exception as annotation_err:
+            pass
 
 st.plotly_chart(fig, use_container_width=True)
 
