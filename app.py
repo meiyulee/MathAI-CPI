@@ -69,7 +69,7 @@ else:
     model_sheets.sort(reverse=True)
 
 # 3. 側邊控制面板
-st.sidebar.header("  ️ 模型參數選單")
+st.sidebar.header("🎛️ 模型參數選單")
 selected_sheet = st.sidebar.selectbox("1. 選擇模型分析工作表 (月份)", model_sheets)
 engine_type = st.sidebar.radio("2. 選擇 MathAI 核心引擎", ["外生限制短期趨勢內樣本", "AI 自主進化版 (從2018開始)"])
 
@@ -168,8 +168,14 @@ if is_new_trend:
 else:
     st.success(f"ℹ️ **當前模型狀態**：美國通膨數據在該區間內運作平穩。")
 
-# 5. 繪製自適應金融圖表
-fig = go.Figure()
+# 5. 💡【重構原生圖表物件】：直接在 layout 中使用極簡、純淨的規格，確保完全相容 Python 3.14
+layout = go.Layout(
+    xaxis=dict(title="觀測日期 (YYYY-MM)"),
+    yaxis=dict(title="年增率 (%)"),
+    template="plotly_white",
+    hovermode="x unified"
+)
+fig = go.Figure(layout=layout)
 
 # FRED 實際年增率（純點）
 fig.add_trace(go.Scatter(
@@ -207,16 +213,6 @@ if not df_est_clean.empty:
                     ax=0, ay=-40, bordercolor="#d62728", borderwidth=1, borderpad=4, bgcolor="#FEF2F2", opacity=0.95
                 )
         except: pass
-
-# 🚀【極致修復版】：全面重構為最基礎、最萬用的 Plotly 宣告語法，徹底規避一切底層版本排斥
-fig.update_layout(
-    xaxis=dict(title="觀測日期 (YYYY-MM)"),
-    yaxis=dict(title="年增率 (%)"),
-    template="plotly_white",
-    hovermode="x unified"
-)
-# 單獨設置圖例位置，確保各版本完全相容
-fig.update_layout(legend=dict(orient="h", x=0.3, y=-0.2))
 
 st.plotly_chart(fig, use_container_width=True)
 
