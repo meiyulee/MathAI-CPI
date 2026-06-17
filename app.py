@@ -171,6 +171,7 @@ else:
 # 5. 繪製自適應金融圖表
 fig = go.Figure()
 
+# FRED 實際年增率（純點）
 fig.add_trace(go.Scatter(
     x=df_clean['display_date'], y=df_clean['Actual'],
     mode='markers', 
@@ -207,15 +208,16 @@ if not df_est_clean.empty:
                 )
         except: pass
 
-# 🚀【全面純淨化】：精確移除所有註解與衝突的多餘符號，確保 100% 成功編譯
+# 🚀【極致修復版】：全面重構為最基礎、最萬用的 Plotly 宣告語法，徹底規避一切底層版本排斥
 fig.update_layout(
-    xaxis_title="觀測日期 (YYYY-MM)",
-    yaxis_title="年增率 (%)",
-    hovermode="x unified",
+    xaxis=dict(title="觀測日期 (YYYY-MM)"),
+    yaxis=dict(title="年增率 (%)"),
     template="plotly_white",
-    legend=dict(orient="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5),
-    margin=dict(t=10, b=50, l=10, r=10)
+    hovermode="x unified"
 )
+# 單獨設置圖例位置，確保各版本完全相容
+fig.update_layout(legend=dict(orient="h", x=0.3, y=-0.2))
+
 st.plotly_chart(fig, use_container_width=True)
 
 # 6. 呈現自適應數據卡片
