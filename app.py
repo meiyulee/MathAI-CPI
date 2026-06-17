@@ -117,7 +117,7 @@ try:
     overall_r2 = None
     overall_mse = None
     is_new_trend = False
-    start_x_val = None 
+    segment_length = 8 # 預設安全長度（限制版最少 8 個月）
     
     if text_col and text_col in df_raw.columns:
         text_list = df_raw[text_col].fillna("").astype(str).tolist()
@@ -137,9 +137,18 @@ try:
         
         if anova_idx >= 5:
             target_line_text = text_list[anova_idx - 5]
-            x_matches = re.findall(r'(?:from|\s+X\s*=\s*|\s+X\s+|\D)(\d+)', target_line_text, re.IGNORECASE)
-            if x_matches:
-                start_x_val = int(x_matches[-1])
+            # 🚀【核心突破】：同時抓取起點和終點兩個 X 數字（例如抓到 115 和 123）
+            x_range_matches = re.findall(r'(\d+)\s+to\s+(\d+)', target_line_text, re.IGNORECASE)
+            if x_range_matches:
+                start_x = int(x_range_matches[0][0])
+                end_x = int(x_range_matches[0][1])
+                # 核心計算法：終點 - 起點 + 1 = 最新這條短線涵蓋的總數據點數（月份數）
+                segment_length = end_x - start_x + 1
+            else:
+                # 備用正則：若格式不同，改抓獨立的單一數字
+                x_single_matches = re.findall(r'(?:from|\s+X\s*=\s*|\s+X\s+|\D)(\d+)', target_line_text, re.IGNORECASE)
+                if len(x_single_matches) >= 2:
+                    segment_length = int(x_single_matches[-1]) - int(x_single_matches[-2]) + 1
 
     if overall_r2_col and overall_r2_col in df_raw.columns:
         r2_list = df_raw[overall_r2_col].fillna("").astype(str).tolist()
@@ -168,13 +177,13 @@ if is_new_trend:
 else:
     st.success(f"ℹ️ **當前模型狀態**：美國通膨數據在該區間內運作平穩。")
 
-# 5. 建立專業金融圖表（💡 修正點：利用 fixedrange 鎖定 X/Y 軸防止手機端誤觸跑位）
+# 5. 繪製自適應金融圖表
 layout = go.Layout(
     xaxis=dict(title="觀測日期 (YYYY-MM)", fixedrange=True),
     yaxis=dict(title="年增率 (%)", fixedrange=True),
     template="plotly_white",
     hovermode="x unified",
-    dragmode=False # 強制關閉手機拖拽平移功能，網頁上下滑動極其流暢！
+    dragmode=False 
 )
 fig = go.Figure(layout=layout)
 
@@ -197,19 +206,17 @@ if not df_est_clean.empty:
         line=dict(color='#d62728', width=3, dash='dash' if "AI" in engine_type else 'solid')
     ))
 
-    # === 🚨 【EconTech 空間大會合：強制 int 轉換還原最新線段起點】 ===
-    if is_new_trend and start_x_val is not None:
+    # === 🚨 【EconTech 終極神技：全自動數據長度倒扣定位法】 ===
+    if is_new_trend and len(df_est_clean) >= segment_length:
         try:
-            # 💡 修正：將資料表的 X_Idx 強制轉為 int 進行精準整數對齊，完美復原切割線！
-            df_est_clean['X_Idx_int'] = df_est_clean['X_Idx'].fillna(0).astype(int)
-            df_target_node = df_est_clean[df_est_clean['X_Idx_int'] == int(start_x_val)]
-            
-            if df_target_node.empty and len(df_est_clean) >= 8:
-                df_target_node = df_est_clean.iloc[-8:-7]
+            # 🎯 核心神邏輯：直接去有數字的估計線最尾巴，精準往回倒扣最新線段的月份數（segment_length）
+            # 這樣找出來的節點，百分之百、絕對就是這條最新直線的「第一天」！
+            target_idx = -int(segment_length)
+            df_target_node = df_est_clean.iloc[target_idx:target_idx+1]
 
             if not df_target_node.empty:
-                break_date = str(df_target_node['display_date'].iloc)
-                break_val = float(df_target_node['Estimate'].iloc)
+                break_date = str(df_target_node['display_date'].iloc[0])
+                break_val = float(df_target_node['Estimate'].iloc[0])
                 
                 # 畫穿透灰色虛線
                 fig.add_vline(x=break_date, line_width=1.5, line_dash="dash", line_color="#475569")
