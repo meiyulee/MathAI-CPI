@@ -170,7 +170,7 @@ except Exception as e:
     st.stop()
 
 if is_new_trend:
-    st.error(f"🚨 **MathAI 趨勢拐點警報**：當前引擎已自動捕捉到動態趨勢轉折點！")
+    st.error(f"🚨 **MathAI 趨勢拐點警報**：當前引擎已自動捕捉到動態趨勢转折點！")
 else:
     st.success(f"ℹ️ **當前模型狀態**：美國通膨數據在該區間內運作平穩。")
 
@@ -203,31 +203,30 @@ if not df_est_clean.empty:
         line=dict(color='#d62728', width=3, dash='dash' if "AI" in engine_type else 'solid')
     ))
 
-    # === 🚨 【EconTech 空間修正：精準補足 1 個月的邊界點錯配】 ===
+    # === 🚨 【EconTech 空間大會合：最安全之正向長度切割計算法】 ===
     if is_new_trend and len(df_est_clean) >= segment_length:
         try:
-            # 🎯 終極修正：將倒扣長度設定為 -(segment_length - 1)，把當前終點月份扣除，完美向右平移一個月！
-            target_idx = -int(segment_length - 1)
+            # 🎯 終極修正邏輯：總長度 N 減去趨勢段落月數，直接精準錨定最新線段的「第 1 個格子」
+            # 這不僅 100% 規避了 0 邊界，更能完美對齊到 2025-01！
+            target_pos = len(df_est_clean) - int(segment_length)
             
-            # 安全防護：防止最新線段剛好佔滿全樣本導致越界
-            if abs(target_idx) > len(df_est_clean):
-                target_idx = 0
-                
-            df_target_node = df_est_clean.iloc[target_idx:target_idx+1]
+            # 防護鎖，確保不越界
+            if 0 <= target_pos < len(df_est_clean):
+                df_target_node = df_est_clean.iloc[target_pos:target_pos+1]
 
-            if not df_target_node.empty:
-                break_date = str(df_target_node['display_date'].iloc)
-                break_val = float(df_target_node['Estimate'].iloc)
-                
-                # 畫穿透灰色虛線
-                fig.add_vline(x=break_date, line_width=1.5, line_dash="dash", line_color="#475569")
-                
-                # 彈出紅框標籤
-                fig.add_annotation(
-                    x=break_date, y=break_val, text="🚨 MathAI 內生趨勢轉折拐點",
-                    showarrow=True, arrowhead=2, arrowcolor="#d62728", arrowsize=1, arrowwidth=2,
-                    ax=0, ay=-40, bordercolor="#d62728", borderwidth=1, borderpad=4, bgcolor="#FEF2F2", opacity=0.95
-                )
+                if not df_target_node.empty:
+                    break_date = str(df_target_node['display_date'].iloc[0])
+                    break_val = float(df_target_node['Estimate'].iloc[0])
+                    
+                    # 畫穿透灰色虛線
+                    fig.add_vline(x=break_date, line_width=1.5, line_dash="dash", line_color="#475569")
+                    
+                    # 彈出紅框標籤
+                    fig.add_annotation(
+                        x=break_date, y=break_val, text="🚨 MathAI 內生趨勢轉折拐點",
+                        showarrow=True, arrowhead=2, arrowcolor="#d62728", arrowsize=1, arrowwidth=2,
+                        ax=0, ay=-40, bordercolor="#d62728", borderwidth=1, borderpad=4, bgcolor="#FEF2F2", opacity=0.95
+                    )
         except: pass
 
 st.plotly_chart(fig, use_container_width=True)
