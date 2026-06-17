@@ -7,11 +7,39 @@ import re
 # 1. 網頁頁面配置
 st.set_page_config(page_title="MathAI CPI Forecast", layout="wide")
 
+# ================= 🚀 【手機版響應式外觀極致 CSS 優化】 =================
 st.html("""
     <style>
-        .block-container { padding-top: 4.5rem !important; padding-bottom: 2rem !important; }
-        .main-title { font-size: 26px !important; font-weight: 700 !important; color: #1E293B !important; margin-bottom: 8px !important; }
-        .sub-title { font-size: 15px !important; font-weight: 500 !important; color: #64748B !important; margin-bottom: 15px !important; }
+        /* 自動調整主體容器邊距，在手機上看時留出最舒適的防誤觸安全區 */
+        .block-container {
+            padding-top: 4.5rem !important;
+            padding-bottom: 2rem !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
+        /* 智慧縮放主標題：大螢幕 26px，手機螢幕自動微調為 20px 避免折行 */
+        .main-title {
+            font-size: calc(20px + 0.5vw) !important;
+            font-weight: 700 !important;
+            color: #1E293B !important;
+            margin-bottom: 8px !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        /* 智慧縮放副標題 */
+        .sub-title {
+            font-size: calc(12px + 0.3vw) !important;
+            font-weight: 500 !important;
+            color: #64748B !important;
+            margin-bottom: 15px !important;
+        }
+        /* 優化 Streamlit 卡片在手機版上的陰影與圓角 */
+        [data-testid="stMetric"] {
+            background-color: #F8FAFC !important;
+            border: 1px solid #E2E8F0 !important;
+            padding: 12px 16px !important;
+            border-radius: 8px !important;
+            margin-bottom: 10px !important;
+        }
     </style>
 """)
 
@@ -45,7 +73,7 @@ else:
     model_sheets.sort(reverse=True)
 
 # 3. 側邊控制面板
-st.sidebar.header("🎛️ 模型參數選單")
+st.sidebar.header("  ️ 模型參數選單")
 selected_sheet = st.sidebar.selectbox("1. 選擇模型分析工作表 (月份)", model_sheets)
 engine_type = st.sidebar.radio("2. 選擇 MathAI 核心引擎", ["外生限制短期趨勢內樣本", "AI 自主進化版 (從2018開始)"])
 
@@ -58,22 +86,22 @@ try:
     col_mapping = {extended_cols[idx]: col_name for idx, col_name in enumerate(df_raw.columns) if idx < len(extended_cols)}
 
     if "外生" in engine_type:
-        date_col = col_mapping.get("A")       # A 欄：日期
-        actual_col = col_mapping.get("G")     # G 欄：實際年增率原始值
-        estimate_col = col_mapping.get("H")   # H 欄：估計值
-        text_col = col_mapping.get("I")       # I 欄：最新短期趨勢文字段落區
-        overall_r2_col = col_mapping.get("K") # K 欄：整體 R²
-        overall_mse_col = col_mapping.get("L") # L 欄：整體 MSE
-        x_index_col = col_mapping.get("C")     # C 欄：時間序 X 欄位
+        date_col = col_mapping.get("A")       
+        actual_col = col_mapping.get("G")     
+        estimate_col = col_mapping.get("H")   
+        text_col = col_mapping.get("I")       
+        overall_r2_col = col_mapping.get("K") 
+        overall_mse_col = col_mapping.get("L") 
+        x_index_col = col_mapping.get("C")     
         engine_label = "外生限制短期趨勢"
     else:
-        date_col = col_mapping.get("V")       # V 欄：日期
-        actual_col = col_mapping.get("AA")    # AA 欄：實際年增率原始值
-        estimate_col = col_mapping.get("AB")  # AB 欄：估計值
-        text_col = col_mapping.get("AC")      # AC 欄：趨勢文字區
-        overall_r2_col = col_mapping.get("AE") # AE 欄：整體 R² 欄位
-        overall_mse_col = col_mapping.get("AF") # AF 欄：整體 MSE 欄位
-        x_index_col = col_mapping.get("W")     # W 欄：時間序 X 欄位
+        date_col = col_mapping.get("V")       
+        actual_col = col_mapping.get("AA")    
+        estimate_col = col_mapping.get("AB")  
+        text_col = col_mapping.get("AC")      
+        overall_r2_col = col_mapping.get("AE") 
+        overall_mse_col = col_mapping.get("AF") 
+        x_index_col = col_mapping.get("W")     
         engine_label = "AI自主進化"
 
     if not date_col or not actual_col or not estimate_col:
@@ -89,7 +117,6 @@ try:
     
     df_clean['display_date'] = pd.to_datetime(df_clean['Date'], errors='coerce').dt.strftime('%Y-%m')
         
-    # === 🎯 統計指標與最新趨勢起點全自動提取 ===
     short_r2 = None
     overall_r2 = None
     overall_mse = None
@@ -100,30 +127,24 @@ try:
         text_list = df_raw[text_col].fillna("").astype(str).tolist()
         text_block = " ".join(text_list)
         
-        # 1. 提取最新短期趨勢 R² 
         r2_matches = re.findall(r'(?:R2|R\^2|R_2)\s*=\s*(-?\d+\.?\d*(?:[eE][-+]?\d+)?)', text_block, re.IGNORECASE)
         if r2_matches: short_r2 = float(r2_matches[-1])
             
         if "新趨勢" in text_block or "new line" in text_block.lower() or "sorting" in text_block.lower():
             is_new_trend = True
 
-        # 2. 🚀【核心優化：ANOVA 倒序空間平移鎖定演算法】
-        # 倒序尋找 "ANOVA" 大字出現的精準行數
         anova_idx = -1
         for idx in range(len(text_list) - 1, -1, -1):
             if "anova" in text_list[idx].lower():
                 anova_idx = idx
                 break
         
-        # 如果找到 ANOVA，直接精準往上抓取第 5 列（即 anova_idx - 5）
         if anova_idx >= 5:
             target_line_text = text_list[anova_idx - 5]
-            # 從這行萬中選一的專屬文字中，抓取第一個數字（即起點 X 數字）
             x_matches = re.findall(r'(?:from|\s+X\s*=\s*|\s+X\s+|\D)(\d+)', target_line_text, re.IGNORECASE)
             if x_matches:
-                start_x_val = int(x_matches[0]) # 鎖定 X 起點數字（如限制版的 115，進化版的 93）
+                start_x_val = int(x_matches[-1])
 
-    # 3. 全自動倒序 K 欄與 L 欄打撈長期指標
     if overall_r2_col and overall_r2_col in df_raw.columns:
         r2_list = df_raw[overall_r2_col].fillna("").astype(str).tolist()
         for i in range(len(r2_list) - 1, -1, -1):
@@ -143,7 +164,7 @@ try:
             except: continue
 
 except Exception as e:
-    st.error(f"❌ 數據與 ANOVA 指標提取失敗。請檢查 Excel 結構。錯誤: {e}")
+    st.error(f"❌ 數據與 ANOVA 指標提取失敗。錯誤: {e}")
     st.stop()
 
 if is_new_trend:
@@ -151,36 +172,30 @@ if is_new_trend:
 else:
     st.success(f"ℹ️ **當前模型狀態**：美國通膨數據在該區間內運作平穩。")
 
-# 5. 繪製純淨單軸 Plotly 金融圖表
+# 5. 繪製自適應金融圖表
 fig = go.Figure()
 
-# FRED 實際年增率（純點）
 fig.add_trace(go.Scatter(
     x=df_clean['display_date'], y=df_clean['Actual'],
     mode='markers', 
-    name='FRED 實際 CPI 年增率 (%)',
-    hovertemplate="<b>日期</b>: %{x}<br><b>實際年增率</b>: %{y}%<extra></extra>",
+    name='FRED 實際 CPI 年增率',
+    hovertemplate="<b>日期</b>: %{x}<br><b>實際值</b>: %{y}%<extra></extra>",
     marker=dict(color='#2ca02c' if "AI" in engine_type else '#1f77b4', size=6, opacity=0.7)
 ))
 
-# MathAI 精準多線段短期趨勢預估值（實線穿透）
 df_est_clean = df_clean.dropna(subset=['Estimate']).copy()
 if not df_est_clean.empty:
     fig.add_trace(go.Scatter(
         x=df_est_clean['display_date'], y=df_est_clean['Estimate'],
         mode='lines', 
-        name='MathAI 精準多線段短期趨勢預估值 (%)',
-        hovertemplate="<b>日期</b>: %{x}<br><b>MathAI 預估值</b>: %{y:.4f}%<extra></extra>",
+        name='MathAI 短期趨勢預估值',
+        hovertemplate="<b>日期</b>: %{x}<br><b>預估值</b>: %{y:.4f}%<extra></extra>",
         line=dict(color='#d62728', width=3, dash='dash' if "AI" in engine_type else 'solid')
     ))
 
-    # === 🚨 【EconTech 空間大會合：100% 精準對齊最新線段起點】 ===
     if is_new_trend and start_x_val is not None:
         try:
-            # 尋找 X_Idx 完全等於平移第 5 列所撈出的起點數字那一行
             df_target_node = df_est_clean[df_est_clean['X_Idx'] == start_x_val]
-            
-            # 智慧備用容錯保護
             if df_target_node.empty and len(df_est_clean) >= 8:
                 df_target_node = df_est_clean.iloc[-8:-7]
 
@@ -188,31 +203,29 @@ if not df_est_clean.empty:
                 break_date = str(df_target_node['display_date'].iloc[0])
                 break_val = float(df_target_node['Estimate'].iloc[0])
                 
-                # 畫穿透灰色虛線
                 fig.add_vline(x=break_date, line_width=1.5, line_dash="dash", line_color="#475569")
-                
-                # 彈出紅框標籤
                 fig.add_annotation(
-                    x=break_date, y=break_val, text="🚨 MathAI 內生趨勢轉折拐點",
+                    x=break_date, y=break_val, text="🚨 趨勢轉折拐點",
                     showarrow=True, arrowhead=2, arrowcolor="#d62728", arrowsize=1, arrowwidth=2,
                     ax=0, ay=-40, bordercolor="#d62728", borderwidth=1, borderpad=4, bgcolor="#FEF2F2", opacity=0.95
                 )
-        except Exception as annotation_err:
-            pass
+        except: pass
 
+# 🚀【Plotly 圖例響應式設定】：手機版將圖例移至下方防止壓縮圖表
 fig.update_layout(
     title=None,
-    xaxis_title="觀測日期 (YYYY-MM)", yaxis_title="通貨膨脹率 / 年增率 (%)",
+    xaxis_title="觀測日期 (YYYY-MM)", yaxis_title="年增率 (%)",
     hovermode="x unified", template="plotly_white",
-    legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.02), margin=dict(t=10, b=10)
+    legend=dict(orient="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5), 
+    margin=dict(t=10, b=50, l=10, r=10) # 緊湊型寬度配置
 )
 st.plotly_chart(fig, use_container_width=True)
 
-# 6. 呈現量化指標卡片
-col1, col2, col3 = st.columns(3)
+# 6. 呈現自適應數據卡片
+col1, col2, col3 = st.columns(3, gap="medium")
 with col1: st.metric(label="📊 短期趨勢解釋力 (Short R²)", value=f"{short_r2:.6f}" if short_r2 is not None else "自動對齊中")
 with col2: st.metric(label="🏛️ 模型整體解釋力 (Overall R²)", value=str(overall_r2) if overall_r2 is not None else "自動對齊中")
 with col3: st.metric(label="📐 模型整體均方誤差 (Overall MSE)", value=str(overall_mse) if overall_mse is not None else "自動對齊中")
 
 st.write("---")
-st.caption("🔒 Powered by MathAI Propelled Dual-Engine. Relative Row Displacement Anchoring System.")
+st.caption("🔒 Powered by MathAI Propelled Dual-Engine.")
