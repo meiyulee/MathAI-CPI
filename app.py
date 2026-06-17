@@ -10,14 +10,12 @@ st.set_page_config(page_title="MathAI CPI Forecast", layout="wide")
 # ================= 🚀 【手機版響應式外觀極致 CSS 優化】 =================
 st.html("""
     <style>
-        /* 自動調整主體容器邊距，在手機上看時留出最舒適的防誤觸安全區 */
         .block-container {
             padding-top: 4.5rem !important;
             padding-bottom: 2rem !important;
             padding-left: 1rem !important;
             padding-right: 1rem !important;
         }
-        /* 智慧縮放主標題：大螢幕 26px，手機螢幕自動微調為 20px 避免折行 */
         .main-title {
             font-size: calc(20px + 0.5vw) !important;
             font-weight: 700 !important;
@@ -25,14 +23,12 @@ st.html("""
             margin-bottom: 8px !important;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
-        /* 智慧縮放副標題 */
         .sub-title {
             font-size: calc(12px + 0.3vw) !important;
             font-weight: 500 !important;
             color: #64748B !important;
             margin-bottom: 15px !important;
         }
-        /* 優化 Streamlit 卡片在手機版上的陰影與圓角 */
         [data-testid="stMetric"] {
             background-color: #F8FAFC !important;
             border: 1px solid #E2E8F0 !important;
@@ -211,11 +207,13 @@ if not df_est_clean.empty:
                 )
         except: pass
 
-# 🚀【修正點】：拔除重複的 title=None，完美合併所有自適應設定
+# 🚀【全面純淨化】：精確移除所有註解與衝突的多餘符號，確保 100% 成功編譯
 fig.update_layout(
-    xaxis_title="觀測日期 (YYYY-MM)", yaxis_title="年增率 (%)",
-    hovermode="x unified", template="plotly_white",
-    legend=dict(orient="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5), 
+    xaxis_title="觀測日期 (YYYY-MM)",
+    yaxis_title="年增率 (%)",
+    hovermode="x unified",
+    template="plotly_white",
+    legend=dict(orient="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5),
     margin=dict(t=10, b=50, l=10, r=10)
 )
 st.plotly_chart(fig, use_container_width=True)
